@@ -17,12 +17,6 @@ export class FilmsController {
   @Get(':id/schedule')
   async getFilmSchedule(@Param('id') id: string) {
     const schedule = await this.filmsService.getFilmSchedule(id);
-    if (!schedule) {
-      return {
-        total: 0,
-        items: [],
-      };
-    }
     return {
       total: schedule.length,
       items: schedule,
