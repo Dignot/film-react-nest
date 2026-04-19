@@ -1,8 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Order, OrderDocument } from '../order/schemas/order.schema';
-import { Film } from '../films/schemas/film.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Film } from '../films/entities/film.entity';
+import { Schedule } from '../films/entities/schedule.entity';
 import { OrderDto, OrderResultDto } from '../order/dto/order.dto';
 
 const generateId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -14,48 +14,92 @@ export interface IOrderRepository {
 @Injectable()
 export class OrderRepository implements IOrderRepository {
   constructor(
-    @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
-    @InjectModel(Film.name) private filmModel: Model<Film>,
+    @InjectRepository(Film)
+    private filmRepository: Repository<Film>,
+    @InjectRepository(Schedule)
+    private scheduleRepository: Repository<Schedule>,
   ) {}
 
+  private normalizeTaken(taken?: string | string[] | null): string[] {
+    if (!taken) {
+      return [];
+    }
+
+    if (Array.isArray(taken)) {
+      return taken.map(String).map((seat) => seat.trim()).filter(Boolean);
+    }
+
+    const trimmed = taken.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return Array.isArray(parsed)
+          ? parsed.map(String).map((seat) => seat.trim()).filter(Boolean)
+          : [];
+      } catch {
+        // fall through to comma-separated parsing
+      }
+    }
+
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      return trimmed
+        .slice(1, -1)
+        .split(',')
+        .map((seat) => seat.trim().replace(/^"|"$/g, ''))
+        .filter(Boolean);
+    }
+
+    return trimmed.split(',').map((seat) => seat.trim()).filter(Boolean);
+  }
+
   async createOrder(orderDto: OrderDto): Promise<OrderResultDto[]> {
-    // Проверить и забронировать места
+    const sessions = new Map<string, {
+      session: Schedule;
+      bookedSeats: Set<string>;
+    }>();
+
     for (const ticket of orderDto.tickets) {
-      const film = await this.filmModel.findOne({ id: ticket.film }).exec();
+      const film = await this.filmRepository.findOneBy({ id: ticket.film });
       if (!film) {
         throw new BadRequestException(`Film ${ticket.film} not found`);
       }
-      const session = film.schedule.find(s => s.id === ticket.session);
-      if (!session) {
-        throw new BadRequestException(`Session ${ticket.session} not found for film ${ticket.film}`);
+
+      let cached = sessions.get(ticket.session);
+      if (!cached) {
+        const session = await this.scheduleRepository.findOneBy({ id: ticket.session });
+        if (!session) {
+          throw new BadRequestException(
+            `Session ${ticket.session} not found for film ${ticket.film}`,
+          );
+        }
+
+        if (session.filmId && session.filmId !== ticket.film) {
+          throw new BadRequestException(
+            `Session ${ticket.session} does not belong to film ${ticket.film}`,
+          );
+        }
+
+        const bookedSeats = new Set(this.normalizeTaken(session.taken));
+        cached = { session, bookedSeats };
+        sessions.set(ticket.session, cached);
       }
+
       const seatKey = `${ticket.row}:${ticket.seat}`;
-      if (session.taken.includes(seatKey)) {
+      if (cached.bookedSeats.has(seatKey)) {
         throw new BadRequestException(`Seat ${seatKey} is already taken`);
       }
-      // Добавить в taken
-      session.taken.push(seatKey);
+      cached.bookedSeats.add(seatKey);
     }
 
-    // Сохранить изменения в фильмах
-    for (const ticket of orderDto.tickets) {
-      await this.filmModel.updateOne(
-        { id: ticket.film, 'schedule.id': ticket.session },
-        { $push: { 'schedule.$.taken': `${ticket.row}:${ticket.seat}` } }
-      ).exec();
+    for (const { session, bookedSeats } of sessions.values()) {
+      session.taken = JSON.stringify(Array.from(bookedSeats));
+      await this.scheduleRepository.save(session);
     }
 
     const items: OrderResultDto[] = orderDto.tickets.map((ticket) => ({
       id: generateId(),
       ...ticket,
     }));
-
-    await this.orderModel.create({
-      id: generateId(),
-      email: orderDto.email,
-      phone: orderDto.phone,
-      tickets: items,
-    });
 
     return items;
   }
