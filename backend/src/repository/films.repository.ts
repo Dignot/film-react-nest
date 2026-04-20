@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Film } from '../films/entities/film.entity';
@@ -60,9 +60,7 @@ const parseFilmToDto = (film: Film): FilmResponseDto => ({
   description: film.description,
   director: film.director,
   rating: film.rating,
-  tags: film.tags
-    ? film.tags.split(',').map(t => t.trim()).filter(t => t)
-    : [],
+  tags: film.tags || [],
   image: film.image,
   cover: film.cover,
   schedules: film.schedules
@@ -86,15 +84,12 @@ export class FilmsRepository implements IFilmsRepository {
     return films.map(parseFilmToDto);
   }
 
-  async getFilmById(filmId: string): Promise<Film> {
+  async getFilmById(filmId: string): Promise<Film | null> {
     const film = await this.filmRepository.findOne({
       where: { id: filmId },
       relations: ['schedules'],
     });
-    if (!film) {
-      throw new NotFoundException('Film not found');
-    }
-    return film;
+    return film || null;
   }
 
   async getSchedule(filmId: string): Promise<ScheduleDto[]> {

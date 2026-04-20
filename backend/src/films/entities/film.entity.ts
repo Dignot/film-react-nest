@@ -21,8 +21,8 @@ export class Film {
   @Column({ type: 'double precision', nullable: false })
   rating: number;
 
-  @Column({ type: 'text', nullable: false })
-  tags: string;
+  @Column({ type: 'json', nullable: false, default: () => "'[]'" })
+  tags: string[];
 
   @Column({ type: 'varchar', nullable: false })
   image: string;

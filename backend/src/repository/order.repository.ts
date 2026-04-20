@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Film } from '../films/entities/film.entity';
@@ -61,20 +61,20 @@ export class OrderRepository implements IOrderRepository {
     for (const ticket of orderDto.tickets) {
       const film = await this.filmRepository.findOneBy({ id: ticket.film });
       if (!film) {
-        throw new BadRequestException(`Film ${ticket.film} not found`);
+        throw new Error(`Film ${ticket.film} not found`);
       }
 
       let cached = sessions.get(ticket.session);
       if (!cached) {
         const session = await this.scheduleRepository.findOneBy({ id: ticket.session });
         if (!session) {
-          throw new BadRequestException(
+          throw new Error(
             `Session ${ticket.session} not found for film ${ticket.film}`,
           );
         }
 
         if (session.filmId && session.filmId !== ticket.film) {
-          throw new BadRequestException(
+          throw new Error(
             `Session ${ticket.session} does not belong to film ${ticket.film}`,
           );
         }
@@ -86,13 +86,13 @@ export class OrderRepository implements IOrderRepository {
 
       const seatKey = `${ticket.row}:${ticket.seat}`;
       if (cached.bookedSeats.has(seatKey)) {
-        throw new BadRequestException(`Seat ${seatKey} is already taken`);
+        throw new Error(`Seat ${seatKey} is already taken`);
       }
       cached.bookedSeats.add(seatKey);
     }
 
     for (const { session, bookedSeats } of sessions.values()) {
-      session.taken = JSON.stringify(Array.from(bookedSeats));
+      session.taken = Array.from(bookedSeats);
       await this.scheduleRepository.save(session);
     }
 
