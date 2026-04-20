@@ -1,7 +1,7 @@
 export class ScheduleDto {
   id: string;
   daytime: string;
-  hall: number;
+  hall: string;
   rows: number;
   seats: number;
   price: number;
@@ -18,7 +18,7 @@ export class FilmResponseDto {
   tags: string[];
   image: string;
   cover: string;
-  schedule: ScheduleDto[];
+  schedules?: ScheduleDto[];
 }
 
 export class CreateFilmDto {
@@ -30,7 +30,6 @@ export class CreateFilmDto {
   tags: string[];
   image: string;
   cover: string;
-  schedule: ScheduleDto[];
 }
 
 export class UpdateFilmDto {
@@ -42,5 +41,4 @@ export class UpdateFilmDto {
   tags?: string[];
   image?: string;
   cover?: string;
-  schedule?: ScheduleDto[];
 }
