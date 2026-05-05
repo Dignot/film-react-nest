@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    networks:
+      - app-network
+
+  backend:
+    build: ./backend
+    container_name: backend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Anubis
+      POSTGRES_DB: prac
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - app-network
+
+volumes:
+  db_data:
+  pgadmin_data:
+
+networks:
+  app-network:
+    driver: bridge
