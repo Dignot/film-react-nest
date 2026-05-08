@@ -32,7 +32,8 @@ import { Schedule } from './films/entities/schedule.entity';
   },
 }),
     ServeStaticModule.forRoot({
-  rootPath: path.resolve(process.cwd(), 'public'),
+  rootPath: path.resolve('/app/public'),
+  serveRoot: '/',
 }),
     FilmsModule,
     OrderModule,
