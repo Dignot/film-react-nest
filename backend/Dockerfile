@@ -16,7 +16,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
+# 👇 ВОТ ЭТО ГЛАВНОЕ
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
 
 EXPOSE 4000
 
