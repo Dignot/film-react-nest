@@ -19,21 +19,22 @@ import { Schedule } from './films/entities/schedule.entity';
 
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.get<string>('DATABASE_HOST', 'localhost'),
-        port: config.get<number>('DATABASE_PORT', 5432),
-        username: config.get<string>('DATABASE_USER', 'postgres'),
-        password: config.get<string>('DATABASE_PASSWORD', ''),
-        database: config.get<string>('DATABASE_NAME'),
-        entities: [Film, Schedule],
-        synchronize: true,
-      }),
+      useFactory: (config: ConfigService) => {
+        return {
+          type: 'postgres',
+          host: config.get<string>('DATABASE_HOST', 'localhost'),
+          port: config.get<number>('DATABASE_PORT', 5432),
+          username: config.get<string>('DATABASE_USER', 'postgres'),
+          password: config.get<string>('DATABASE_PASSWORD', ''),
+          database: config.get<string>('DATABASE_NAME'),
+          entities: [Film, Schedule],
+          synchronize: true,
+        };
+      },
     }),
-
     ServeStaticModule.forRoot({
-      rootPath: path.resolve(__dirname, '..', 'public', 'content', 'afisha'),
-      serveRoot: '/content/afisha',
+      rootPath: path.join(__dirname, '..', 'public', 'content'),
+      serveRoot: '/content',
     }),
     FilmsModule,
     OrderModule,
